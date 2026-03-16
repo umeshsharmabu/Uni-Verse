@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 5%;
+    --foreground: 0 0% 100%;
+
+    --card: 240 8% 10%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 240 8% 10%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 348 100% 61%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 8% 14%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 5% 18%;
+    --muted-foreground: 240 5% 65%;
+
+    --accent: 348 100% 65%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+
+    --border: 240 5% 20%;
+    --input: 240 5% 20%;
+    --ring: 348 100% 61%;
+
+    --radius: 1rem;
+
+    --sidebar-background: 240 10% 5%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 348 100% 61%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 8% 14%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 240 5% 20%;
+    --sidebar-ring: 348 100% 61%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-card/60 backdrop-blur-xl border border-border/50;
+  }
+
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(348, 100%, 61%), hsl(348, 100%, 69%));
+  }
+
+  .gradient-primary-hover {
+    background: linear-gradient(135deg, hsl(348, 100%, 55%), hsl(348, 100%, 61%));
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(348 100% 61% / 0.3), 0 0 60px hsl(348 100% 61% / 0.1);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(348, 100%, 61%), hsl(348, 100%, 69%));
+  }
+}
