@@ -1,5 +1,4 @@
 # 
-Changes made via Lovable will be committed automatically to this repo.
 
 Deployed Linnk: https://uni-verse-1.lovable.app 
 
