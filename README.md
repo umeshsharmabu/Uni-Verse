@@ -1,6 +1,6 @@
 # 
 
-Deployed Linnk: https://uni-verse-1.lovable.app 
+Deployed Linnk: https://uni-verse-blond.vercel.app/
 
 **Use your preferred IDE**
 
