@@ -16,7 +16,7 @@ export default function TicketView({ eventId, ticketId, onClose }: Props) {
   const [event, setEvent] = useState<LocalEvent | null>(null);
 
   useEffect(() => {
-    setEvent(db.getEvent(eventId));
+    void db.getEvent(eventId).then(setEvent).catch(() => setEvent(null));
   }, [eventId]);
 
   if (!event) return null;

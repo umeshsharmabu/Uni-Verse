@@ -48,3 +48,19 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Supabase and Vercel setup
+
+Phase I uses Supabase for authentication, PostgreSQL, row-level security,
+storage, and registration/check-in transactions. Payments are not implemented.
+
+1. Create or select a Supabase project and apply the migrations in
+   `supabase/migrations`.
+2. Enable email confirmation in Supabase Auth and configure the site's redirect
+   URL.
+3. Copy `.env.example` to `.env.local` and set
+   `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`.
+4. Add the same two public environment variables in the Vercel project
+   settings, then deploy the Vite build.
+
+The frontend must never contain a Supabase service-role key. Keep privileged
+operations behind RLS-protected RPCs or a server-side function.

@@ -20,13 +20,22 @@ export default function PreferencePopup() {
     });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (selected.length === 0 || !userId) return;
     setSaving(true);
-    db.updateProfile(userId, { preferences: selected });
-    refreshProfile();
-    toast({ title: "Preferences saved! 🎉" });
-    setSaving(false);
+    try {
+      await db.updateProfile(userId, { preferences: selected });
+      await refreshProfile();
+      toast({ title: "Preferences saved! 🎉" });
+    } catch (error) {
+      toast({
+        title: "Could not save preferences",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (

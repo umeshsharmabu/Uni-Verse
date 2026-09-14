@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import * as db from "@/lib/localDb";
 import type { LocalProfile, LocalRegistration } from "@/lib/localDb";
 
@@ -10,23 +11,20 @@ interface AppContextType {
   registrations: LocalRegistration[];
   bookmarks: string[];
   registerForEvent: (eventId: string) => Promise<LocalRegistration | null>;
+  cancelRegistration: (registrationId: string) => Promise<void>;
   toggleBookmark: (eventId: string) => void;
   isRegistered: (eventId: string) => boolean;
   isBookmarked: (eventId: string) => boolean;
   activeTab: number;
   setActiveTab: (tab: number) => void;
-  logout: () => void;
-  refreshProfile: () => void;
-  refreshRegistrations: () => void;
-  login: (email: string, password: string) => { error?: string };
-  signup: (email: string, password: string, role: "student" | "organisation", name: string) => { error?: string };
+  logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  refreshRegistrations: () => Promise<void>;
+  login: (email: string, password: string) => Promise<{ error?: string }>;
+  signup: (email: string, password: string, role: "student" | "organisation", name: string) => Promise<{ error?: string }>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
-
-function generateTicketId() {
-  return "TKT-" + Math.random().toString(36).substring(2, 8).toUpperCase();
-}
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
@@ -36,111 +34,124 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState(0);
 
-  const loadUser = useCallback((uid: string) => {
-    const p = db.getProfile(uid);
-    setProfile(p);
-    setRegistrations(db.getRegistrations(uid));
+  const loadUser = useCallback(async (uid: string) => {
+    const [nextProfile, nextRegistrations] = await Promise.all([
+      db.getProfile(uid),
+      db.getRegistrations(uid),
+    ]);
+    setProfile(nextProfile);
+    setRegistrations(nextRegistrations);
     setUserId(uid);
   }, []);
 
   useEffect(() => {
-    const session = db.getSession();
-    if (session) {
-      loadUser(session.userId);
-    }
-    setIsLoading(false);
-  }, [loadUser]);
-
-  const login = useCallback((email: string, password: string) => {
-    const result = db.signIn(email, password);
-    if ("error" in result) return { error: result.error };
-    loadUser(result.profile.id);
-    return {};
-  }, [loadUser]);
-
-  const signup = useCallback((email: string, password: string, role: "student" | "organisation", name: string) => {
-    const result = db.signUp(email, password, role, name);
-    if ("error" in result) return { error: result.error };
-    loadUser(result.profile.id);
-    return {};
-  }, [loadUser]);
-
-  const refreshProfile = useCallback(() => {
-    if (userId) {
-      setProfile(db.getProfile(userId));
-    }
-  }, [userId]);
-
-  const refreshRegistrations = useCallback(() => {
-    if (userId) {
-      setRegistrations(db.getRegistrations(userId));
-    }
-  }, [userId]);
-
-  const registerForEvent = useCallback(async (eventId: string): Promise<LocalRegistration | null> => {
-    if (!userId) return null;
-    const remaining = db.decrementSeats(eventId);
-    if (remaining === null) return null;
-
-    const ticketId = generateTicketId();
-    const reg = db.createRegistration({
-      user_id: userId,
-      event_id: eventId,
-      ticket_id: ticketId,
-      qr_code: `campusdistrict://ticket/${ticketId}`,
-      status: "Confirmed",
+    let mounted = true;
+    void supabase.auth.getSession().then(async ({ data, error }) => {
+      if (error) {
+        if (mounted) setIsLoading(false);
+        return;
+      }
+      if (mounted && data.session) {
+        try {
+          await loadUser(data.session.user.id);
+        } finally {
+          if (mounted) setIsLoading(false);
+        }
+      } else if (mounted) {
+        setIsLoading(false);
+      }
     });
-    setRegistrations((prev) => [reg, ...prev]);
-    return reg;
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        void loadUser(session.user.id).finally(() => mounted && setIsLoading(false));
+      } else {
+        setUserId(null);
+        setProfile(null);
+        setRegistrations([]);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [loadUser]);
+
+  const login = useCallback(async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { error: error.message };
+    if (data.user) await loadUser(data.user.id);
+    return {};
+  }, [loadUser]);
+
+  const signup = useCallback(async (email: string, password: string, role: "student" | "organisation", name: string) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { role, name } },
+    });
+    if (error) return { error: error.message };
+    if (data.user && data.session) await loadUser(data.user.id);
+    return {};
+  }, [loadUser]);
+
+  const refreshProfile = useCallback(async () => {
+    if (userId) setProfile(await db.getProfile(userId));
   }, [userId]);
 
-  const toggleBookmark = useCallback((eventId: string) => {
-    setBookmarks((prev) =>
-      prev.includes(eventId) ? prev.filter((id) => id !== eventId) : [...prev, eventId]
-    );
-  }, []);
+  const refreshRegistrations = useCallback(async () => {
+    if (userId) setRegistrations(await db.getRegistrations(userId));
+  }, [userId]);
 
-  const isRegistered = useCallback(
-    (eventId: string) => registrations.some((r) => r.event_id === eventId),
-    [registrations]
-  );
+  const registerForEvent = useCallback(async (eventId: string) => {
+    if (!userId) return null;
+    const registration = await db.registerForEvent(eventId);
+    setRegistrations((previous) => [registration, ...previous.filter((item) => item.id !== registration.id)]);
+    return registration;
+  }, [userId]);
 
-  const isBookmarked = useCallback(
-    (eventId: string) => bookmarks.includes(eventId),
-    [bookmarks]
-  );
+  const cancelRegistration = useCallback(async (registrationId: string) => {
+    await db.cancelRegistration(registrationId);
+    await refreshRegistrations();
+  }, [refreshRegistrations]);
 
-  const logout = useCallback(() => {
-    db.signOut();
-    setUserId(null);
-    setProfile(null);
-    setRegistrations([]);
-    setBookmarks([]);
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
     setActiveTab(0);
   }, []);
 
+  const isRegistered = useCallback(
+    (eventId: string) => registrations.some((registration) => registration.event_id === eventId && registration.status === "Confirmed"),
+    [registrations],
+  );
+
+  const isBookmarked = useCallback((eventId: string) => bookmarks.includes(eventId), [bookmarks]);
+
   return (
-    <AppContext.Provider
-      value={{
-        userId,
-        profile,
-        isLoggedIn: !!userId,
-        isLoading,
-        registrations,
-        bookmarks,
-        registerForEvent,
-        toggleBookmark,
-        isRegistered,
-        isBookmarked,
-        activeTab,
-        setActiveTab,
-        logout,
-        refreshProfile,
-        refreshRegistrations,
-        login,
-        signup,
-      }}
-    >
+    <AppContext.Provider value={{
+      userId,
+      profile,
+      isLoggedIn: !!userId,
+      isLoading,
+      registrations,
+      bookmarks,
+      registerForEvent,
+      cancelRegistration,
+      toggleBookmark: (eventId) => setBookmarks((current) => current.includes(eventId)
+        ? current.filter((id) => id !== eventId)
+        : [...current, eventId]),
+      isRegistered,
+      isBookmarked,
+      activeTab,
+      setActiveTab,
+      logout,
+      refreshProfile,
+      refreshRegistrations,
+      login,
+      signup,
+    }}>
       {children}
     </AppContext.Provider>
   );

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useApp } from "@/contexts/AppContext";
 import { Button } from "@/components/ui/button";
-import { Clock, MapPin, IndianRupee, Users } from "lucide-react";
+import { Clock, MapPin, Users } from "lucide-react";
 import confetti from "canvas-confetti";
 import { toast } from "@/hooks/use-toast";
 import type { LocalEvent } from "@/lib/localDb";
@@ -18,27 +18,35 @@ export default function RegisterDialog({ event, onClose }: Props) {
 
   const handleConfirm = async () => {
     setLoading(true);
-    const reg = await registerForEvent(event.id);
-    setLoading(false);
+    try {
+      const reg = await registerForEvent(event.id);
+      if (!reg) {
+        toast({ title: "Registration failed", description: "No seats available or an error occurred.", variant: "destructive" });
+        return;
+      }
 
-    if (!reg) {
-      toast({ title: "Registration failed", description: "No seats available or an error occurred.", variant: "destructive" });
-      return;
+      onClose();
+
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#FF3B5C", "#FF5F7E", "#FF4D6D", "#ffffff"],
+      });
+
+      toast({
+        title: "🎉 Registration Confirmed!",
+        description: `Ticket ${reg.ticket_id} for ${event.title}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Registration failed",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    onClose();
-
-    confetti({
-      particleCount: 100,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ["#FF3B5C", "#FF5F7E", "#FF4D6D", "#ffffff"],
-    });
-
-    toast({
-      title: "🎉 Registration Confirmed!",
-      description: `Ticket ${reg.ticket_id} for ${event.title}`,
-    });
   };
 
   return (
@@ -84,13 +92,7 @@ export default function RegisterDialog({ event, onClose }: Props) {
             {event.seats_remaining} seats available
           </div>
           <div className="flex items-center gap-2">
-            {Number(event.price) === 0 ? (
-              <span className="font-semibold text-success">Free Entry</span>
-            ) : (
-              <span className="flex items-center font-semibold text-foreground">
-                <IndianRupee className="h-4 w-4" /> {String(event.price)}
-              </span>
-            )}
+            <span className="font-semibold text-success">Free Entry</span>
           </div>
         </div>
 
@@ -104,10 +106,10 @@ export default function RegisterDialog({ event, onClose }: Props) {
           </Button>
           <Button
             onClick={handleConfirm}
-            disabled={loading || event.seats_remaining <= 0}
+            disabled={loading}
             className="gradient-primary flex-1 rounded-xl text-primary-foreground hover:opacity-90"
           >
-            {loading ? "Registering..." : "Confirm Registration"}
+            {loading ? "Registering..." : event.seats_remaining > 0 ? "Confirm Registration" : "Join Waitlist"}
           </Button>
         </div>
       </motion.div>

@@ -17,22 +17,19 @@ export default function DashboardHome() {
 
   useEffect(() => {
     if (!userId) return;
-    const events = db.getEventsByCreator(userId);
-    if (events.length === 0) {
-      setStats({ totalEvents: 0, totalRegistrations: 0, seatsFilled: 0, upcomingCount: 0 });
-      return;
-    }
+    void db.getEventsByCreator(userId).then(async (events) => {
+      if (events.length === 0) {
+        setStats({ totalEvents: 0, totalRegistrations: 0, seatsFilled: 0, upcomingCount: 0 });
+        return;
+      }
 
-    let totalRegs = 0;
-    for (const evt of events) {
-      totalRegs += db.getRegistrationCountByEvent(evt.id);
-    }
+      const registrations = await Promise.all(events.map((event) => db.getRegistrationCountByEvent(event.id)));
+      const seatsFilled = events.reduce((sum, event) => sum + (event.total_seats - event.seats_remaining), 0);
+      const today = new Date().toISOString().split("T")[0];
+      const upcomingCount = events.filter((event) => event.date >= today).length;
 
-    const seatsFilled = events.reduce((sum, e) => sum + (e.total_seats - e.seats_remaining), 0);
-    const today = new Date().toISOString().split("T")[0];
-    const upcomingCount = events.filter((e) => e.date >= today).length;
-
-    setStats({ totalEvents: events.length, totalRegistrations: totalRegs, seatsFilled, upcomingCount });
+      setStats({ totalEvents: events.length, totalRegistrations: registrations.reduce((sum, count) => sum + count, 0), seatsFilled, upcomingCount });
+    }).catch(() => setStats({ totalEvents: 0, totalRegistrations: 0, seatsFilled: 0, upcomingCount: 0 }));
   }, [userId]);
 
   const cards = [

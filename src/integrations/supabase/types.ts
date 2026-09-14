@@ -68,6 +68,9 @@ export type Database = {
           title: string
           total_seats: number
           trending: boolean | null
+          status: string
+          visibility: string
+          university_id: string | null
           updated_at: string
           venue: string
         }
@@ -85,6 +88,9 @@ export type Database = {
           title: string
           total_seats?: number
           trending?: boolean | null
+          status?: string
+          visibility?: string
+          university_id?: string | null
           updated_at?: string
           venue: string
         }
@@ -102,6 +108,9 @@ export type Database = {
           title?: string
           total_seats?: number
           trending?: boolean | null
+          status?: string
+          visibility?: string
+          university_id?: string | null
           updated_at?: string
           venue?: string
         }
@@ -208,6 +217,14 @@ export type Database = {
     }
     Functions: {
       decrement_seats: { Args: { p_event_id: string }; Returns: number }
+      register_for_event: {
+        Args: { p_event_id: string }
+        Returns: Database["public"]["Tables"]["registrations"]["Row"]
+      }
+      cancel_registration: {
+        Args: { p_registration_id: string }
+        Returns: Database["public"]["Tables"]["registrations"]["Row"]
+      }
     }
     Enums: {
       app_role: "student" | "organisation"

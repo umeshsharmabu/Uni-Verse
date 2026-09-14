@@ -37,25 +37,24 @@ export default function TicketScanner({ event, onClose }: Props) {
 
         const ticketId = decodedText.replace("campusdistrict://ticket/", "");
 
-        const reg = db.getRegistrationWithProfile(ticketId, event.id);
-        if (!reg) {
-          setResult({ status: "invalid", message: "Ticket not found for this event" });
-          return;
-        }
+        void (async () => {
+          const reg = await db.getRegistrationWithProfile(ticketId, event.id);
+          if (!reg) {
+            setResult({ status: "invalid", message: "Ticket not found for this event" });
+            return;
+          }
 
-        const existingScans = db.getScans(event.id, ticketId);
-        if (existingScans.length > 0) {
-          setResult({ status: "already_scanned", message: "This ticket has already been scanned" });
-          return;
-        }
-
-        db.createScan({
-          event_id: event.id,
-          ticket_id: ticketId,
-          scanned_by: userId || null,
-        });
-
-        setResult({ status: "valid", message: "Entry confirmed!", attendeeName: reg.profileName });
+          try {
+            await db.createScan({
+              event_id: event.id,
+              ticket_id: ticketId,
+              scanned_by: userId || null,
+            });
+            setResult({ status: "valid", message: "Entry confirmed!", attendeeName: reg.profileName });
+          } catch {
+            setResult({ status: "already_scanned", message: "This ticket has already been scanned" });
+          }
+        })().catch(() => setResult({ status: "invalid", message: "Could not validate this ticket" }));
       },
       () => {}
     ).catch(console.error);

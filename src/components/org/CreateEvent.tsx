@@ -20,38 +20,48 @@ export default function CreateEvent() {
     date: "",
     time: "",
     venue: "",
-    price: "0",
     total_seats: "100",
     banner_image: "",
   });
 
   const update = (key: string, value: string) => setForm((prev) => ({ ...prev, [key]: value }));
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!form.title || !form.date || !form.time || !form.venue) {
       toast({ title: "Please fill required fields", variant: "destructive" });
       return;
     }
     setLoading(true);
 
-    db.createEvent({
-      title: form.title.trim().slice(0, 200),
-      description: form.description.trim().slice(0, 1000),
-      category: form.category,
-      date: form.date,
-      time: form.time,
-      venue: form.venue.trim().slice(0, 200),
-      price: parseFloat(form.price) || 0,
-      total_seats: parseInt(form.total_seats) || 100,
-      seats_remaining: parseInt(form.total_seats) || 100,
-      banner_image: form.banner_image.trim() || null,
-      created_by: userId!,
-      trending: false,
-    });
-
-    setLoading(false);
-    toast({ title: "Event created! 🎉" });
-    setForm({ title: "", description: "", category: "Tech", date: "", time: "", venue: "", price: "0", total_seats: "100", banner_image: "" });
+    try {
+      await db.createEvent({
+        title: form.title.trim().slice(0, 200),
+        description: form.description.trim().slice(0, 1000),
+        category: form.category,
+        date: form.date,
+        time: form.time,
+        venue: form.venue.trim().slice(0, 200),
+        price: 0,
+        total_seats: Math.max(1, parseInt(form.total_seats) || 100),
+        seats_remaining: Math.max(1, parseInt(form.total_seats) || 100),
+        banner_image: form.banner_image.trim() || null,
+        created_by: userId!,
+        trending: false,
+        status: "pending_review",
+        visibility: "public",
+        university_id: null,
+      });
+      toast({ title: "Event submitted! 🎉", description: "An administrator will review it before publishing." });
+      setForm({ title: "", description: "", category: "Tech", date: "", time: "", venue: "", total_seats: "100", banner_image: "" });
+    } catch (error) {
+      toast({
+        title: "Could not create event",
+        description: error instanceof Error ? error.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -106,15 +116,9 @@ export default function CreateEvent() {
           <Input placeholder="Event location" value={form.venue} onChange={(e) => update("venue", e.target.value)} className="h-11 rounded-xl bg-secondary border-border" maxLength={200} />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Price (₹)</label>
-            <Input type="number" min="0" value={form.price} onChange={(e) => update("price", e.target.value)} className="h-11 rounded-xl bg-secondary border-border" />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground mb-1 block">Total Seats</label>
-            <Input type="number" min="1" value={form.total_seats} onChange={(e) => update("total_seats", e.target.value)} className="h-11 rounded-xl bg-secondary border-border" />
-          </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Total Seats</label>
+          <Input type="number" min="1" value={form.total_seats} onChange={(e) => update("total_seats", e.target.value)} className="h-11 rounded-xl bg-secondary border-border" />
         </div>
 
         <div>

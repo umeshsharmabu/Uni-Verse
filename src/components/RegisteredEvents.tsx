@@ -14,8 +14,9 @@ export default function RegisteredEvents() {
   useEffect(() => {
     if (registrations.length === 0) return;
     const eventIds = registrations.map((r) => r.event_id);
-    const allEvents = db.getAllEvents();
-    setEvents(allEvents.filter((e) => eventIds.includes(e.id)));
+    void db.getAllEvents()
+      .then((allEvents) => setEvents(allEvents.filter((e) => eventIds.includes(e.id))))
+      .catch(() => setEvents([]));
   }, [registrations]);
 
   if (registrations.length === 0) {

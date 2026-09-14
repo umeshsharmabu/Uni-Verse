@@ -23,7 +23,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
 
-  const handleAuth = () => {
+  const handleAuth = async () => {
     if (!email.trim()) {
       setError("Please enter your email");
       return;
@@ -42,20 +42,20 @@ export default function Login() {
 
     try {
       if (isSignUp) {
-        const result = signup(email, password, role, email.split("@")[0]);
+        const result = await signup(email, password, role, email.split("@")[0]);
         if (result.error) {
           setError(result.error);
         } else {
-          toast({ title: "Account created!", description: "Welcome to Campus District." });
+          toast({ title: "Account created!", description: "Check your email to confirm your account before signing in." });
         }
       } else {
-        const result = login(email, password);
+        const result = await login(email, password);
         if (result.error) {
           setError(result.error);
         }
       }
-    } catch (err: any) {
-      setError(err.message || "Authentication failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Authentication failed");
     } finally {
       setLoading(false);
     }

@@ -18,12 +18,13 @@ export default function MyEvents() {
 
   useEffect(() => {
     if (!userId) return;
-    const evts = db.getEventsByCreator(userId);
-    const withCounts: EventWithCount[] = evts.map((evt) => ({
-      ...evt,
-      registrationCount: db.getRegistrationCountByEvent(evt.id),
-    }));
-    setEvents(withCounts);
+    void db.getEventsByCreator(userId).then(async (evts) => {
+      const withCounts = await Promise.all(evts.map(async (evt) => ({
+        ...evt,
+        registrationCount: await db.getRegistrationCountByEvent(evt.id),
+      })));
+      setEvents(withCounts);
+    }).catch(() => setEvents([]));
   }, [userId]);
 
   if (scanningEvent) {

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Bookmark, BookmarkCheck, MapPin, Clock, IndianRupee, Users } from "lucide-react";
+import { Search, Bookmark, BookmarkCheck, MapPin, Clock, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { categories } from "@/data/mockEvents";
@@ -17,11 +17,13 @@ export default function UpcomingEvents() {
   const [events, setEvents] = useState<LocalEvent[]>([]);
 
   useEffect(() => {
-    setEvents(db.getAllEvents());
+    void db.getAllEvents().then(setEvents).catch(() => setEvents([]));
   }, []);
 
   // Refresh events after registration
-  const refreshEvents = () => setEvents(db.getAllEvents());
+  const refreshEvents = () => {
+    void db.getAllEvents().then(setEvents).catch(() => setEvents([]));
+  };
 
   const filtered = useMemo(() => {
     let list = events;
@@ -221,21 +223,19 @@ function EventCard({ event, index = 0, isBookmarked, isRegistered, onBookmark, o
           </span>
         </div>
         <div className="mt-4 flex items-center justify-between">
-          <span className="flex items-center text-sm font-semibold text-foreground">
-            {Number(event.price) === 0 ? (
-              <span className="text-success">Free</span>
-            ) : (
-              <span className="flex items-center"><IndianRupee className="h-3 w-3" />{String(event.price)}</span>
-            )}
-          </span>
+          <span className="text-sm font-semibold text-success">Free Entry</span>
           {isRegistered ? (
             <span className="rounded-full bg-success/20 px-4 py-2 text-xs font-medium text-success">
               Registered ✓
             </span>
           ) : event.seats_remaining <= 0 ? (
-            <span className="rounded-full bg-destructive/20 px-4 py-2 text-xs font-medium text-destructive">
-              Sold Out
-            </span>
+            <Button
+              onClick={onRegister}
+              className="rounded-full bg-warning/20 px-4 py-2 text-xs font-semibold text-warning hover:bg-warning/30"
+              size="sm"
+            >
+              Join Waitlist
+            </Button>
           ) : (
             <Button
               onClick={onRegister}
